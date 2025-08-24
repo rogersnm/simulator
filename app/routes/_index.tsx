@@ -176,7 +176,7 @@ export default function Index() {
           </div>
 
           <div className="form-group">
-            <label>Terminal Multiple</label>
+            <label>Terminal EBITDA Multiple</label>
             <input
               type="number"
               value={params.terminalMultiple}
