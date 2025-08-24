@@ -253,7 +253,7 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
   // Calculate terminal value at end of year 6 (month 72)
   const terminalYear = 6;
   const terminalMonth = terminalYear * 12 - 1;
-  const terminalEbitda = ebitda[terminalMonth];
+  const terminalEbitda = ebitda[terminalMonth] * 12;
   const terminalValue = terminalEbitda * terminalMultiple;
   
   // Create cash flows including terminal value
