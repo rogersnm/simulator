@@ -323,12 +323,6 @@ export default function Index() {
                   stroke="#ec4899"
                   strokeWidth={3}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="EE Population"
-                  stroke="#06b6d4"
-                  strokeWidth={2}
-                />
               </LineChart>
             </ResponsiveContainer>
           </div>
