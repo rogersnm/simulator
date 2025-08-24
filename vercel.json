@@ -1,1 +1,8 @@
-{}
+{
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "build/**"
+    }
+  },
+  "routes": [{ "handle": "filesystem" }, { "src": "/(.*)", "dest": "/api" }]
+}
