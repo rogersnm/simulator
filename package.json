@@ -11,9 +11,9 @@
     "vercel-build": "remix build"
   },
   "dependencies": {
-    "@remix-run/node": "^2.8.1",
-    "@remix-run/react": "^2.8.1",
-    "@remix-run/serve": "^2.8.1",
+    "@remix-run/node": "^2.16.7",
+    "@remix-run/react": "^2.16.7",
+    "@remix-run/serve": "^2.16.7",
     "@vercel/remix": "^2.16.7",
     "isbot": "^4.1.0",
     "react": "^18.2.0",
@@ -21,7 +21,7 @@
     "recharts": "^2.12.2"
   },
   "devDependencies": {
-    "@remix-run/dev": "^2.8.1",
+    "@remix-run/dev": "^2.16.7",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
     "typescript": "^5.1.6",
