@@ -257,7 +257,10 @@ export default function Index() {
           <h2>Financial Performance Over Time</h2>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={financialChartData}>
+              <LineChart
+                data={financialChartData}
+                margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="year" />
                 <YAxis tickFormatter={(value) => formatCurrency(value)} />
@@ -301,7 +304,10 @@ export default function Index() {
           <h2>User Metrics Over Time</h2>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={usersChartData}>
+              <LineChart
+                data={usersChartData}
+                margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="year" />
                 <YAxis tickFormatter={(value) => value.toLocaleString()} />
@@ -333,7 +339,10 @@ export default function Index() {
           <h2>EE Population Growth</h2>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={populationGrowthData}>
+              <BarChart
+                data={populationGrowthData}
+                margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="year" />
                 <YAxis tickFormatter={(value) => value.toLocaleString()} />
