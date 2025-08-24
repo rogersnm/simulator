@@ -27,35 +27,151 @@ export interface FinancialResults {
   years: number[];
 }
 
-// IRR calculation using Newton-Raphson method
-function calculateIRR(cashFlows: number[], guess: number = 0.1): number {
-  const maxIterations = 100;
-  const tolerance = 1e-6;
+// IRR calculation with improved Newton-Raphson method and fallbacks
+function calculateIRR(cashFlows: number[]): number {
+  const maxIterations = 1000;
+  const tolerance = 1e-10;
+  const minRate = -0.99; // Minimum rate to prevent division by zero
+  const maxRate = 10.0;   // Maximum rate to prevent extreme values
   
-  let rate = guess;
-  
-  for (let i = 0; i < maxIterations; i++) {
+  // Helper function to calculate NPV
+  function calculateNPV(rate: number): number {
     let npv = 0;
-    let dnpv = 0;
-    
-    for (let j = 0; j < cashFlows.length; j++) {
-      const factor = Math.pow(1 + rate, j);
-      npv += cashFlows[j] / factor;
-      dnpv -= j * cashFlows[j] / (factor * (1 + rate));
+    for (let i = 0; i < cashFlows.length; i++) {
+      npv += cashFlows[i] / Math.pow(1 + rate, i);
     }
-    
-    if (Math.abs(npv) < tolerance) {
-      return rate;
-    }
-    
-    if (Math.abs(dnpv) < tolerance) {
-      break;
-    }
-    
-    rate = rate - npv / dnpv;
+    return npv;
   }
   
-  return rate;
+  // Helper function to calculate NPV derivative
+  function calculateNPVDerivative(rate: number): number {
+    let dnpv = 0;
+    for (let i = 0; i < cashFlows.length; i++) {
+      if (i > 0) {
+        dnpv -= i * cashFlows[i] / Math.pow(1 + rate, i + 1);
+      }
+    }
+    return dnpv;
+  }
+  
+  // Try multiple initial guesses to improve convergence
+  const initialGuesses = [-0.5, -0.2, -0.1, 0.0, 0.1, 0.2, 0.5, 1.0];
+  
+  for (const initialGuess of initialGuesses) {
+    let rate = initialGuess;
+    let converged = false;
+    
+    for (let i = 0; i < maxIterations; i++) {
+      const npv = calculateNPV(rate);
+      
+      if (Math.abs(npv) < tolerance) {
+        converged = true;
+        break;
+      }
+      
+      const dnpv = calculateNPVDerivative(rate);
+      
+      // Check if derivative is too small (would cause instability)
+      if (Math.abs(dnpv) < tolerance) {
+        break;
+      }
+      
+      // Newton-Raphson step
+      const newRate = rate - npv / dnpv;
+      
+      // Apply bounds to prevent extreme values
+      const boundedRate = Math.max(minRate, Math.min(maxRate, newRate));
+      
+      // Check for convergence
+      if (Math.abs(boundedRate - rate) < tolerance) {
+        rate = boundedRate;
+        converged = true;
+        break;
+      }
+      
+      rate = boundedRate;
+    }
+    
+    if (converged) {
+      return rate;
+    }
+  }
+  
+  // If Newton-Raphson fails, use bisection method as fallback
+  return calculateIRRBisection(cashFlows);
+}
+
+// Fallback bisection method for IRR calculation
+function calculateIRRBisection(cashFlows: number[]): number {
+  const tolerance = 1e-10;
+  const maxIterations = 1000;
+  
+  // Helper function to calculate NPV
+  function calculateNPV(rate: number): number {
+    let npv = 0;
+    for (let i = 0; i < cashFlows.length; i++) {
+      npv += cashFlows[i] / Math.pow(1 + rate, i);
+    }
+    return npv;
+  }
+  
+  let lowerBound = -0.99;
+  let upperBound = 10.0;
+  
+  // Find bounds where NPV changes sign
+  let npvLower = calculateNPV(lowerBound);
+  let npvUpper = calculateNPV(upperBound);
+  
+  // If both have same sign, try to find better bounds
+  if (npvLower * npvUpper > 0) {
+    // Try expanding the search range
+    for (let testRate = -0.95; testRate <= 5.0; testRate += 0.1) {
+      const npvTest = calculateNPV(testRate);
+      if (npvLower * npvTest < 0) {
+        upperBound = testRate;
+        npvUpper = npvTest;
+        break;
+      } else if (npvUpper * npvTest < 0) {
+        lowerBound = testRate;
+        npvLower = npvTest;
+        break;
+      }
+    }
+  }
+  
+  // If we still can't find a sign change, return a reasonable estimate
+  if (npvLower * npvUpper > 0) {
+    // If all cash flows are negative, IRR doesn't exist (return very negative value)
+    if (cashFlows.every(cf => cf <= 0)) {
+      return -0.99;
+    }
+    // If all cash flows are positive, IRR is very high
+    if (cashFlows.every(cf => cf >= 0)) {
+      return 10.0;
+    }
+    // Otherwise, return 0 as a neutral estimate
+    return 0.0;
+  }
+  
+  // Bisection method
+  for (let i = 0; i < maxIterations; i++) {
+    const midRate = (lowerBound + upperBound) / 2;
+    const npvMid = calculateNPV(midRate);
+    
+    if (Math.abs(npvMid) < tolerance || Math.abs(upperBound - lowerBound) < tolerance) {
+      return midRate;
+    }
+    
+    if (npvLower * npvMid < 0) {
+      upperBound = midRate;
+      npvUpper = npvMid;
+    } else {
+      lowerBound = midRate;
+      npvLower = npvMid;
+    }
+  }
+  
+  return (lowerBound + upperBound) / 2;
 }
 
 export function calculateFinancials(params: FinancialParams): FinancialResults {
