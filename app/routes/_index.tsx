@@ -14,6 +14,7 @@ import {
 import {
   calculateFinancials,
   formatCurrency,
+  formatCurrencyWithDecimals,
   formatPercentage,
   type FinancialParams,
 } from "~/utils/financial";
@@ -211,8 +212,9 @@ export default function Index() {
                   params.activationRate *
                     params.adoptionRate *
                     params.utilisationRate *
+                    100 *
                     100
-                )}
+                ) / 100}
                 %
               </div>
               <div className="metric-label">Conversion Rate</div>
@@ -220,8 +222,8 @@ export default function Index() {
 
             <div className="metric-card">
               <div className="metric-value">
-                {formatCurrency(
-                  Math.round(params.monthlyRevenuePerUser * params.grossMargin)
+                {formatCurrencyWithDecimals(
+                  params.monthlyRevenuePerUser * params.grossMargin
                 )}
               </div>
               <div className="metric-label">Monthly Gross Profit/User</div>

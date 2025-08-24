@@ -202,12 +202,8 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
   
   // Calculate EE population growth with 10% CAGR after investment period
   for (let i = 0; i < totalMonths; i++) {
-    if (i < investmentPeriodLength) {
-      eePopulationList.push(eePopulation);
-    } else {
-      const yearsSinceStart = (i - investmentPeriodLength) / 12;
-      eePopulationList.push(eePopulation * Math.pow(1.10, yearsSinceStart));
-    }
+    const yearsSinceStart = i / 12;
+    eePopulationList.push(eePopulation * Math.pow(1.10, yearsSinceStart));
   }
   
   // Investment period: no revenue, just opex
@@ -291,6 +287,13 @@ export function formatCurrency(value: number): string {
     return `-£${Math.abs(value).toLocaleString()}`;
   }
   return `£${value.toLocaleString()}`;
+}
+
+export function formatCurrencyWithDecimals(value: number): string {
+  if (value < 0) {
+    return `-£${Math.abs(value).toFixed(2)}`;
+  }
+  return `£${value.toFixed(2)}`;
 }
 
 export function formatPercentage(value: number): string {
