@@ -1,7 +1,14 @@
-import { createRequestHandler } from "@remix-run/node";
-import * as build from "../build/index.js";
+const { createRequestHandler } = require("@remix-run/node");
 
-export default createRequestHandler({
+let build;
+try {
+  build = require("../build/index.js");
+} catch (error) {
+  console.error("Failed to load build:", error);
+  throw error;
+}
+
+module.exports = createRequestHandler({
   build,
   mode: process.env.NODE_ENV,
 });
