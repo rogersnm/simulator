@@ -261,7 +261,7 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
   cashFlows[terminalMonth] += terminalValue;
   
   // Calculate IRR
-  const irr = calculateIRR(cashFlows);
+  const irr = (1+calculateIRR(cashFlows)) ** 12 - 1;
   
   // Create months and years arrays
   const months = Array.from({ length: revenues.length }, (_, i) => i);
