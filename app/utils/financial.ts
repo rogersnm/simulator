@@ -260,19 +260,14 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
     ebitda.push(revenues[i] + cogs[i] + opex[i]);
   }
   
-  // Calculate terminal value at end of year 6 (month 72)
-  const terminalYear = 6;
-  const terminalMonth = terminalYear * 12 - 1;
-  const terminalEbitda = ebitda[terminalMonth] * 12;
+  // Calculate terminal value
+  const terminalEbitda = ebitda[ebitda.length - 1] * 12;
   const terminalValue = terminalEbitda * terminalMultiple;
   
   // Create cash flows including terminal value
-  const cashFlows = [...ebitda];
-  cashFlows[terminalMonth] += terminalValue;
+  const cashFlows = [...ebitda, terminalValue];
   
   // Calculate IRR
-  console.log(cashFlows)
-  console.log(calculateIRR(cashFlows))
   const irr = (1+calculateIRR(cashFlows)) ** 12 - 1;
   
   // Create months, years, and dates arrays

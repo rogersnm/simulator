@@ -153,7 +153,7 @@ export default function Index() {
 
   return (
     <div className="container">
-      <h1>Financial Simulator</h1>
+      <h1>Product Financial Simulator</h1>
 
       <div className="grid grid-3">
         {/* Input Parameters */}
