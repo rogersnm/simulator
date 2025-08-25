@@ -1,7 +1,8 @@
 // Financial calculation utilities based on code.py
-
 export interface FinancialParams {
+  startDate: string;
   eePopulation: number;
+  eePopulationCAGR: number;
   activationRate: number;
   adoptionRate: number;
   utilisationRate: number;
@@ -10,6 +11,8 @@ export interface FinancialParams {
   monthlyOpex: number;
   investmentPeriodLength: number;
   investmentMonthlyOpex: number;
+  rampUpPeriodLength: number;
+  steadyStateSimulationLength: number;
   terminalMultiple: number;
 }
 
@@ -25,7 +28,10 @@ export interface FinancialResults {
   terminalValue: number;
   months: number[];
   years: number[];
+  dates: Date[];
 }
+
+
 
 // IRR calculation with improved Newton-Raphson method and fallbacks
 function calculateIRR(cashFlows: number[]): number {
@@ -176,7 +182,9 @@ function calculateIRRBisection(cashFlows: number[]): number {
 
 export function calculateFinancials(params: FinancialParams): FinancialResults {
   const {
+    startDate,
     eePopulation,
+    eePopulationCAGR,
     activationRate,
     adoptionRate,
     utilisationRate,
@@ -185,13 +193,15 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
     monthlyOpex,
     investmentPeriodLength,
     investmentMonthlyOpex,
+    rampUpPeriodLength,
+    steadyStateSimulationLength,
     terminalMultiple
   } = params;
 
   const monthlyGrossProfitPerUser = monthlyRevenuePerUser * grossMargin;
   const conversionRate = activationRate * adoptionRate * utilisationRate;
   
-  const totalMonths = investmentPeriodLength + 12 + 4 * 12; // investment + ramp + steady
+  const totalMonths = investmentPeriodLength + rampUpPeriodLength + steadyStateSimulationLength;
   
   const revenues: number[] = [];
   const cogs: number[] = [];
@@ -200,10 +210,10 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
   const utilisingUsersList: number[] = [];
   const eePopulationList: number[] = [];
   
-  // Calculate EE population growth with 10% CAGR after investment period
+  // Calculate EE population growth with configurable CAGR
   for (let i = 0; i < totalMonths; i++) {
     const yearsSinceStart = i / 12;
-    eePopulationList.push(eePopulation * Math.pow(1.10, yearsSinceStart));
+    eePopulationList.push(eePopulation * Math.pow(1 + eePopulationCAGR, yearsSinceStart));
   }
   
   // Investment period: no revenue, just opex
@@ -215,14 +225,14 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
   }
   
   // Ramp-up period: revenue grows linearly, population grows with CAGR
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < rampUpPeriodLength; i++) {
     const idx = investmentPeriodLength + i;
     const currentPopulation = eePopulationList[idx];
     const utilisingUsers = currentPopulation * conversionRate;
     const monthlyRevenue = monthlyRevenuePerUser * utilisingUsers;
     const monthlyGrossProfit = monthlyRevenue * grossMargin;
     
-    const rampFactor = i / 12;
+    const rampFactor = i / rampUpPeriodLength;
     revenues.push(rampFactor * monthlyRevenue);
     cogs.push(rampFactor * (monthlyRevenue - monthlyGrossProfit));
     opex.push(monthlyOpex);
@@ -230,8 +240,8 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
   }
   
   // Steady state: full revenue, population continues to grow with CAGR
-  for (let i = 0; i < 4 * 12; i++) {
-    const idx = investmentPeriodLength + 12 + i;
+  for (let i = 0; i < steadyStateSimulationLength; i++) {
+    const idx = investmentPeriodLength + rampUpPeriodLength + i;
     const currentPopulation = eePopulationList[idx];
     const utilisingUsers = currentPopulation * conversionRate;
     const monthlyRevenue = monthlyRevenuePerUser * utilisingUsers;
@@ -261,11 +271,20 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
   cashFlows[terminalMonth] += terminalValue;
   
   // Calculate IRR
+  console.log(cashFlows)
+  console.log(calculateIRR(cashFlows))
   const irr = (1+calculateIRR(cashFlows)) ** 12 - 1;
   
-  // Create months and years arrays
+  // Create months, years, and dates arrays
   const months = Array.from({ length: revenues.length }, (_, i) => i);
   const years = months.map(m => m / 12);
+  
+  // Generate dates starting from the provided start date
+  const dates = months.map(monthIndex => {
+    const date = new Date(startDate);
+    date.setMonth(date.getMonth() + monthIndex);
+    return date;
+  });
   
   return {
     revenues,
@@ -278,7 +297,8 @@ export function calculateFinancials(params: FinancialParams): FinancialResults {
     irr,
     terminalValue,
     months,
-    years
+    years,
+    dates
   };
 }
 
@@ -298,4 +318,8 @@ export function formatCurrencyWithDecimals(value: number): string {
 
 export function formatPercentage(value: number): string {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+export function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
 }
