@@ -16,6 +16,13 @@ export interface FinancialParams {
   terminalMultiple: number;
 }
 
+export interface SavedParameterSet {
+  id: string;
+  name: string;
+  params: FinancialParams;
+  createdAt: Date;
+}
+
 export interface FinancialResults {
   revenues: number[];
   cogs: number[];
@@ -30,8 +37,6 @@ export interface FinancialResults {
   years: number[];
   dates: Date[];
 }
-
-
 
 // IRR calculation with improved Newton-Raphson method and fallbacks
 function calculateIRR(cashFlows: number[]): number {

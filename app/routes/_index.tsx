@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, memo, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -18,6 +18,7 @@ import {
   formatPercentage,
   formatDate,
   type FinancialParams,
+  type SavedParameterSet,
 } from "~/utils/financial";
 
 type LineConfig = {
@@ -33,7 +34,7 @@ type LineChartCardProps = {
   tooltipFormatter?: (value: number) => string;
 };
 
-function LineChartCard({
+const LineChartCard = memo(function LineChartCard({
   title,
   data,
   lines,
@@ -89,7 +90,7 @@ function LineChartCard({
       </div>
     </div>
   );
-}
+});
 
 const defaultParams: FinancialParams = {
   startDate: "2022-01-01", // Today's date in YYYY-MM-DD format
@@ -110,6 +111,41 @@ const defaultParams: FinancialParams = {
 
 export default function Index() {
   const [params, setParams] = useState<FinancialParams>(defaultParams);
+  const [savedParameterSets, setSavedParameterSets] = useState<
+    SavedParameterSet[]
+  >([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Load saved parameter sets from localStorage on component mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("financialSimulatorSavedSets");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // Convert createdAt strings back to Date objects
+          const withDates = parsed.map((set: any) => ({
+            ...set,
+            createdAt: new Date(set.createdAt),
+          }));
+          setSavedParameterSets(withDates);
+        } catch (error) {
+          console.error("Failed to load saved parameter sets:", error);
+        }
+      }
+      setIsInitialLoad(false);
+    }
+  }, []);
+
+  // Save parameter sets to localStorage whenever they change (but not on initial load)
+  useEffect(() => {
+    if (!isInitialLoad && typeof window !== "undefined") {
+      localStorage.setItem(
+        "financialSimulatorSavedSets",
+        JSON.stringify(savedParameterSets)
+      );
+    }
+  }, [savedParameterSets, isInitialLoad]);
 
   const results = useMemo(() => calculateFinancials(params), [params]);
 
@@ -122,34 +158,109 @@ export default function Index() {
     }
   };
 
-  // Prepare data for charts
-  const financialChartData = results.dates.map((date, index) => ({
-    date: date.getTime(), // Use timestamp for proper date handling in recharts
-    dateFormatted: formatDate(date),
-    Revenue: Math.round(results.revenues[index]),
-    COGS: Math.round(results.cogs[index]),
-    OPEX: Math.round(results.opex[index]),
-    EBITDA: Math.round(results.ebitda[index]),
-  }));
+  const handleSaveParameterSet = () => {
+    const name = window.prompt("Enter a name for this parameter set:");
+    if (!name || !name.trim()) return;
 
-  const usersChartData = results.dates.map((date, index) => ({
-    date: date.getTime(),
-    dateFormatted: formatDate(date),
-    "Utilising Users": Math.round(results.utilisingUsers[index]),
-    "EE Population": Math.round(results.eePopulationList[index]),
-  }));
+    const newSet: SavedParameterSet = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      params: { ...params },
+      createdAt: new Date(),
+    };
 
-  const cashFlowChartData = results.dates.map((date, index) => ({
-    date: date.getTime(),
-    dateFormatted: formatDate(date),
-    "Cash Flow": Math.round(results.cashFlows[index]),
-  }));
+    setSavedParameterSets((prev) => [...prev, newSet]);
+  };
 
-  const populationGrowthData = results.dates.map((date, index) => ({
-    date: date.getTime(),
-    dateFormatted: formatDate(date),
-    "EE Population": Math.round(results.eePopulationList[index]),
-  }));
+  const handleLoadParameterSet = (savedSet: SavedParameterSet) => {
+    setParams(savedSet.params);
+  };
+
+  const handleDeleteParameterSet = (id: string) => {
+    setSavedParameterSets((prev) => prev.filter((set) => set.id !== id));
+  };
+
+  // Prepare data for charts - memoized to prevent unnecessary recalculations
+  const financialChartData = useMemo(() => {
+    return results.dates.map((date, index) => ({
+      date: date.getTime(), // Use timestamp for proper date handling in recharts
+      dateFormatted: formatDate(date),
+      Revenue: Math.round(results.revenues[index]),
+      COGS: Math.round(results.cogs[index]),
+      OPEX: Math.round(results.opex[index]),
+      EBITDA: Math.round(results.ebitda[index]),
+    }));
+  }, [results]);
+
+  const usersChartData = useMemo(
+    () =>
+      results.dates.map((date, index) => ({
+        date: date.getTime(),
+        dateFormatted: formatDate(date),
+        "Utilising Users": Math.round(results.utilisingUsers[index]),
+        "EE Population": Math.round(results.eePopulationList[index]),
+      })),
+    [results]
+  );
+
+  const cashFlowChartData = useMemo(
+    () =>
+      results.dates.map((date, index) => ({
+        date: date.getTime(),
+        dateFormatted: formatDate(date),
+        "Cash Flow": Math.round(results.cashFlows[index]),
+      })),
+    [results]
+  );
+
+  const populationGrowthData = useMemo(
+    () =>
+      results.dates.map((date, index) => ({
+        date: date.getTime(),
+        dateFormatted: formatDate(date),
+        "EE Population": Math.round(results.eePopulationList[index]),
+      })),
+    [results]
+  );
+
+  // Memoized formatters to prevent unnecessary re-renders
+  const currencyFormatter = useCallback(
+    (value: number) => formatCurrency(value),
+    []
+  );
+  const currencyTooltipFormatter = useCallback(
+    (value: number) => formatCurrency(Math.round(value)),
+    []
+  );
+  const numberFormatter = useCallback(
+    (value: number) => value.toLocaleString(),
+    []
+  );
+  const numberTooltipFormatter = useCallback(
+    (value: number) => Math.round(value).toLocaleString(),
+    []
+  );
+
+  // Memoized line configurations
+  const financialLines = useMemo(
+    () => [
+      { dataKey: "Revenue", stroke: "#10b981" },
+      { dataKey: "COGS", stroke: "#f59e0b" },
+      { dataKey: "OPEX", stroke: "#ef4444" },
+      { dataKey: "EBITDA", stroke: "#8b5cf6" },
+    ],
+    []
+  );
+
+  const userLines = useMemo(
+    () => [{ dataKey: "Utilising Users", stroke: "#ec4899" }],
+    []
+  );
+
+  const populationLines = useMemo(
+    () => [{ dataKey: "EE Population", stroke: "#3b82f6" }],
+    []
+  );
 
   return (
     <div className="container">
@@ -158,7 +269,91 @@ export default function Index() {
       <div className="grid grid-3">
         {/* Input Parameters */}
         <div className="card">
-          <h2>Parameters</h2>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <h2>Parameters</h2>
+            <button
+              onClick={handleSaveParameterSet}
+              style={{
+                padding: "0.5rem 1rem",
+                backgroundColor: "#3b82f6",
+                color: "white",
+                border: "none",
+                borderRadius: "0.375rem",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+              }}
+            >
+              Save Input Parameters
+            </button>
+          </div>
+
+          {/* Saved Parameter Sets */}
+          {savedParameterSets.length > 0 && (
+            <div style={{ marginBottom: "1rem" }}>
+              <h3
+                style={{
+                  margin: "0 0 0.5rem 0",
+                  fontSize: "1rem",
+                  borderBottom: "1px solid #e5e7eb",
+                  paddingBottom: "0.25rem",
+                }}
+              >
+                Saved Versions
+              </h3>
+              <div>
+                {savedParameterSets.map((savedSet) => (
+                  <div
+                    key={savedSet.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "0.5rem",
+                      marginBottom: "0.25rem",
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "0.375rem",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => handleLoadParameterSet(savedSet)}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: "500", fontSize: "0.875rem" }}>
+                        {savedSet.name}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                        {savedSet.createdAt.toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteParameterSet(savedSet.id);
+                      }}
+                      style={{
+                        padding: "0.25rem 0.5rem",
+                        backgroundColor: "#ef4444",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "0.25rem",
+                        cursor: "pointer",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="input-section">
             <h3 className="section-header">Step 1. Initial Conditions</h3>
@@ -434,38 +629,27 @@ export default function Index() {
           <LineChartCard
             title="Financial Performance"
             data={financialChartData}
-            lines={[
-              { dataKey: "Revenue", stroke: "#10b981" },
-              { dataKey: "COGS", stroke: "#f59e0b" },
-              { dataKey: "OPEX", stroke: "#ef4444" },
-              { dataKey: "EBITDA", stroke: "#8b5cf6" },
-            ]}
-            yAxisFormatter={(value) => formatCurrency(value)}
-            tooltipFormatter={(value: number) =>
-              formatCurrency(Math.round(value))
-            }
+            lines={financialLines}
+            yAxisFormatter={currencyFormatter}
+            tooltipFormatter={currencyTooltipFormatter}
           />
 
           {/* Users Chart */}
           <LineChartCard
             title="User Metrics"
             data={usersChartData}
-            lines={[{ dataKey: "Utilising Users", stroke: "#ec4899" }]}
-            yAxisFormatter={(value) => value.toLocaleString()}
-            tooltipFormatter={(value: number) =>
-              Math.round(value).toLocaleString()
-            }
+            lines={userLines}
+            yAxisFormatter={numberFormatter}
+            tooltipFormatter={numberTooltipFormatter}
           />
 
           {/* EE Population Growth */}
           <LineChartCard
             title="Population Growth"
             data={populationGrowthData}
-            lines={[{ dataKey: "EE Population", stroke: "#3b82f6" }]}
-            yAxisFormatter={(value) => value.toLocaleString()}
-            tooltipFormatter={(value: number) =>
-              Math.round(value).toLocaleString()
-            }
+            lines={populationLines}
+            yAxisFormatter={numberFormatter}
+            tooltipFormatter={numberTooltipFormatter}
           />
         </div>
       </div>
